@@ -9,17 +9,44 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ✅ GET products from Printful
+// ✅ GET real synced products from Printful
 app.get('/products', async (req, res) => {
   try {
-    const response = await axios.get('https://api.printful.com/products', {
+    const response = await axios.get('https://api.printful.com/store/products', {
       headers: {
-        Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`,
-      },
+        Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`
+      }
     });
-    res.json(response.data);
+
+    const rawProducts = response.data.result;
+
+    const detailedProducts = await Promise.all(
+      rawProducts.map(async (item) => {
+        const productDetail = await axios.get(`https://api.printful.com/store/products/${item.id}`, {
+          headers: {
+            Authorization: `Bearer ${process.env.PRINTFUL_API_KEY}`
+          }
+        });
+
+        const product = productDetail.data.result;
+
+        return {
+          id: product.id,
+          name: product.name,
+          price: product.variants[0].retail_price,
+          image: product.variants[0].files[0]?.preview_url || product.thumbnail_url,
+          variant_id: product.variants[0].id
+        };
+      })
+    );
+
+    res.json(detailedProducts);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch products', detail: err.message });
+    console.error('❌ Failed to fetch Printful products:', err.message);
+    res.status(500).json({
+      error: 'Failed to fetch products',
+      detail: err.message
+    });
   }
 });
 
@@ -34,12 +61,15 @@ app.post('/checkout', async (req, res) => {
       mode: 'payment',
       line_items: lineItems,
       success_url: 'https://twentyone52.com/success',
-      cancel_url: 'https://twentyone52.com/cancel',
+      cancel_url: 'https://twentyone52.com/cancel'
     });
 
     res.json({ url: session.url });
   } catch (err) {
-    res.status(500).json({ error: 'Stripe session error', detail: err.message });
+    res.status(500).json({
+      error: 'Stripe session error',
+      detail: err.message
+    });
   }
 });
 
