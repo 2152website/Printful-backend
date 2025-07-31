@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ✅ GET real synced products from Printful
+// ✅ GET synced Printful products
 app.get('/products', async (req, res) => {
   try {
     const response = await axios.get('https://api.printful.com/store/products', {
@@ -50,7 +50,7 @@ app.get('/products', async (req, res) => {
   }
 });
 
-// ✅ POST checkout via Stripe
+// ✅ POST checkout to Stripe
 app.post('/checkout', async (req, res) => {
   const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
   const { lineItems } = req.body;
@@ -75,5 +75,5 @@ app.post('/checkout', async (req, res) => {
 
 // ✅ Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
