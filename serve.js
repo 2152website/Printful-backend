@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -9,7 +10,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ✅ GET synced Printful products
 app.get('/products', async (req, res) => {
   try {
     const response = await axios.get('https://api.printful.com/store/products', {
@@ -42,15 +42,19 @@ app.get('/products', async (req, res) => {
 
     res.json(detailedProducts);
   } catch (err) {
-    console.error('❌ Failed to fetch Printful products:', err.message);
-    res.status(500).json({
-      error: 'Failed to fetch products',
-      detail: err.message
-    });
+    console.error('❌ Printful API failed. Loading fallback data.', err.message);
+
+    // Fallback to local products.json
+    try {
+      const localProducts = JSON.parse(fs.readFileSync('./data/products.json', 'utf8'));
+      res.json(localProducts);
+    } catch (fileErr) {
+      console.error('❌ Local fallback failed:', fileErr.message);
+      res.status(500).json({ error: 'Failed to load product data.' });
+    }
   }
 });
 
-// ✅ POST checkout to Stripe
 app.post('/checkout', async (req, res) => {
   const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
   const { lineItems } = req.body;
@@ -66,14 +70,11 @@ app.post('/checkout', async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    res.status(500).json({
-      error: 'Stripe session error',
-      detail: err.message
-    });
+    console.error('❌ Stripe error:', err.message);
+    res.status(500).json({ error: 'Stripe checkout error', detail: err.message });
   }
 });
 
-// ✅ Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
